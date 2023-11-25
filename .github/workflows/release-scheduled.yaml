@@ -1,5 +1,5 @@
 ---
-name: "Scheduled: Release"
+name: Scheduled Release
 
 concurrency:
   group: container-release
@@ -8,13 +8,13 @@ concurrency:
 on:
   workflow_dispatch:
     inputs:
-      apps:
-        description: "Apps (ex: radarr,sonarr)"
+      appsToBuild:
+        description: App(s) to build
         required: false
         type: string
-        default: "all"
+        default: all
       force:
-        description: "Rebuild images regardless of whether version has changed"
+        description: Force rebuild
         type: boolean
         default: false
         required: true
@@ -22,27 +22,25 @@ on:
     - cron: "0 * * * *"
 
 jobs:
-  lint:
-    name: Lint
-    uses: ./.github/workflows/workflow_call-lint.yaml
+  simple-checks:
+    name: Simple Checks
+    uses: ./.github/workflows/simple-checks.yaml
 
   build-images:
     name: Build Images
-    needs:
-      - lint
-    uses: ./.github/workflows/workflow_call-build_images.yaml
+    needs: simple-checks
+    uses: ./.github/workflows/build-images.yaml
     secrets: inherit
     permissions:
       packages: write
     with:
-      appsToBuild: ${{ inputs.apps }}
+      appsToBuild: ${{ inputs.appsToBuild }}
       force: ${{ inputs.force == true }}
       pushImages: true
       sendNotifications: true
 
   render-readme:
     name: Render Readme
-    needs:
-      - build-images
-    uses: ./.github/workflows/workflow_call-render-readme.yaml
+    needs: build-images
+    uses: ./.github/workflows/render-readme.yaml
     secrets: inherit
