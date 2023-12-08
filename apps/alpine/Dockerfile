@@ -1,5 +1,5 @@
 ARG VERSION
-FROM public.ecr.aws/docker/library/alpine:3.18 as builder
+FROM public.ecr.aws/docker/library/alpine:3.19 as builder
 ARG VERSION
 ARG TARGETOS
 ARG TARGETARCH
@@ -19,7 +19,7 @@ RUN \
     && upx /go/bin/envsubst
 
 #FROM public.ecr.aws/docker/library/alpine:${VERSION}
-FROM public.ecr.aws/docker/library/alpine:3.18
+FROM public.ecr.aws/docker/library/alpine:3.19
 ARG VERSION
 ARG CHANNEL
 ARG TARGETPLATFORM
