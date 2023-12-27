@@ -67,9 +67,9 @@ Each Image will be built with a `rolling` tag, along with tags specific to it's 
 
 Container | Channel | Image | Latest Tags
 --- | --- | --- | ---
-[plex]() | stable | ghcr.io/onedr0p/plex |
-[plex-beta]() | beta | ghcr.io/onedr0p/plex-beta |
-[spark]() | 3.5.0 | ghcr.io/onedr0p/spark |
+[plex]() | stable | ghcr.io/clarknova99/plex |
+[plex-beta]() | beta | ghcr.io/clarknova99/plex-beta |
+[spark]() | 3.5.0 | ghcr.io/clarknova99/spark |
 
 
 ## Contributing
