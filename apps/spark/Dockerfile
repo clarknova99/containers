@@ -19,7 +19,7 @@ RUN pip3 install pyspark awswrangler boto3 findspark gimme-aws-creds keyrings.al
 
 RUN apt install -y mc lsof inetutils-ping netcat
 
-ENV SPARK_VERSION 3.3.1
+ENV SPARK_VERSION 3.5.0
 ENV HADOOP_VERSION 3
 ENV DELTA_CORE 2.4.0
 ENV DELTA_VERSION 3.0.0
