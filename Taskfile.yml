@@ -54,3 +54,7 @@ tasks:
     status:
       - test -f ./.goss/goss
       - test -f ./.goss/dgoss
+  commit:
+    desc: Stage, commit & push
+    cmds:
+      - git add -A && git commit -m {{ .CLI_ARGS }} && git push && task cluster:reconcile

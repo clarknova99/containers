@@ -2,14 +2,6 @@
 NOTE: AUTO-GENERATED FILE
 to edit this file, instead edit its template at: ./github/scripts/templates/README.md.j2
 -->
-<div align="center">
-
-
-## Containers
-
-_An opinionated collection of container images_
-
-</div>
 
 <div align="center">
 
