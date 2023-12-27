@@ -13,13 +13,13 @@ _An opinionated collection of container images_
 
 <div align="center">
 
-![GitHub Repo stars](https://img.shields.io/github/stars/onedr0p/containers?style=for-the-badge)
-![GitHub forks](https://img.shields.io/github/forks/onedr0p/containers?style=for-the-badge)
-![GitHub Workflow Status (with event)](https://img.shields.io/github/actions/workflow/status/onedr0p/containers/release-scheduled.yaml?style=for-the-badge&label=Scheduled%20Release)
+![GitHub Repo stars](https://img.shields.io/github/stars/clarknova99/containers?style=for-the-badge)
+![GitHub forks](https://img.shields.io/github/forks/clarknova99/containers?style=for-the-badge)
+![GitHub Workflow Status (with event)](https://img.shields.io/github/actions/workflow/status/clarknova99/containers/release-scheduled.yaml?style=for-the-badge&label=Scheduled%20Release)
 
 </div>
 
-Welcome to our container images, if looking for a container start by [browsing the container packages](https://github.com/onedr0p?tab=packages&repo_name=containers).
+Welcome to our container images, if looking for a container start by [browsing the container packages](https://github.com/clarknova99?tab=packages&repo_name=containers).
 
 ## Mission statement
 
@@ -33,8 +33,8 @@ The containers built here do not use immutable tags, as least not in the more co
 
 We do take a similar approach but instead of appending a `-ls69` or `-r420` prefix to the tag we instead insist on pinning to the sha256 digest of the image, while this is not as pretty it is just as functional in making the images immutable.
 
-| Container                                              | Immutable |
-|--------------------------------------------------------|-----------|
+| Container                                          | Immutable |
+|----------------------------------------------------|-----------|
 | `ghcr.io/clarknova99/sonarr:rolling`                   | ❌         |
 | `ghcr.io/clarknova99/sonarr:3.0.8.1507`                | ❌         |
 | `ghcr.io/clarknova99/sonarr:rolling@sha256:8053...`    | ✅         |
@@ -69,6 +69,7 @@ Container | Channel | Image | Latest Tags
 --- | --- | --- | ---
 [plex]() | stable | ghcr.io/onedr0p/plex |
 [plex-beta]() | beta | ghcr.io/onedr0p/plex-beta |
+[spark]() | 3.5.0 | ghcr.io/onedr0p/spark |
 
 
 ## Contributing
