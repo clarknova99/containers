@@ -61,5 +61,6 @@ EXPOSE 9083
 #Spark notebook port
 EXPOSE 8888
 
+COPY ./apps/spark/scripts /scripts
 COPY ./apps/spark/entrypoint.sh /entrypoint.sh
 CMD ["/entrypoint.sh"]
