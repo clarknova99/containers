@@ -45,7 +45,7 @@ Container | Channel | Image | Latest Tags
 --- | --- | --- | ---
 [plex]() | stable | ghcr.io/clarknova99/plex |
 [plex-beta]() | beta | ghcr.io/clarknova99/plex-beta |
-[spark]() | 3.5.0 | ghcr.io/clarknova99/spark |
+[spark]() | stable | ghcr.io/clarknova99/spark |
 
 
 ## Contributing
