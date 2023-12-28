@@ -3,6 +3,20 @@ NOTE: AUTO-GENERATED FILE
 to edit this file, instead edit its template at: ./github/scripts/templates/README.md.j2
 -->
 
+## Tag immutability
+
+The containers built here do not use immutable tags, as least not in the more common way you have seen from [linuxserver.io](https://fleet.linuxserver.io/) or [Bitnami](https://bitnami.com/stacks/containers).
+
+We do take a similar approach but instead of appending a `-ls69` or `-r420` prefix to the tag we instead insist on pinning to the sha256 digest of the image, while this is not as pretty it is just as functional in making the images immutable.
+
+| Container                                          | Immutable |
+|----------------------------------------------------|-----------|
+| `ghcr.io/clarknova99/sonarr:rolling`                   | ❌         |
+| `ghcr.io/clarknova99/sonarr:3.0.8.1507`                | ❌         |
+| `ghcr.io/clarknova99/sonarr:rolling@sha256:8053...`    | ✅         |
+| `ghcr.io/clarknova99/sonarr:3.0.8.1507@sha256:8053...` | ✅         |
+
+_If pinning an image to the sha256 digest, tools like [Renovate](https://github.com/renovatebot/renovate) support updating the container on a digest or application version change._
 
 ## Passing arguments to a application
 
