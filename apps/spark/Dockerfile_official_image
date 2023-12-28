@@ -1,0 +1,22 @@
+FROM docker.io/spark:3.5.0-scala2.12-java17-ubuntu
+
+USER root
+
+RUN set -ex; \
+    apt-get update; \
+    apt-get install -y python3 python3-pip; \
+    rm -rf /var/lib/apt/lists/*
+
+ENV DELTA_CORE 2.4.0
+ENV DELTA_VERSION 3.0.0
+ENV SCALA_VERSION 2.12
+
+RUN wget https://repo1.maven.org/maven2/io/delta/delta-core_$SCALA_VERSION/$DELTA_CORE/delta-core_$SCALA_VERSION-$DELTA_CORE.jar -P $SPARK_DIR/jars/ && \
+    wget https://repo1.maven.org/maven2/io/delta/delta-storage/$DELTA_VERSION/delta-storage-$DELTA_VERSION.jar -P $SPARK_DIR/jars/
+
+COPY ./apps/spark/scripts /scripts
+COPY ./apps/spark/entrypoint.sh /entrypoint.sh
+CMD ["/entrypoint.sh"]
+
+USER spark
+
