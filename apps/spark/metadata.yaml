@@ -1,4 +1,6 @@
 ---
+# bitnami: https://github.com/bitnami/containers/blob/main/bitnami/spark/3.5/debian-11/Dockerfile
+# official: https://github.com/apache/spark-docker/blob/master/3.5.0/scala2.12-java17-ubuntu/Dockerfile
 app: spark
 base: false
 channels:

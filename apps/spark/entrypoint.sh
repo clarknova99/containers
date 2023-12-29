@@ -1,65 +1,114 @@
 #!/bin/bash
-# Copyright VMware, Inc.
-# SPDX-License-Identifier: APACHE-2.0
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Prevent any errors from being silently ignored
+set -eo pipefail
 
-# shellcheck disable=SC1091
+attempt_setup_fake_passwd_entry() {
+  # Check whether there is a passwd entry for the container UID
+  local myuid; myuid="$(id -u)"
+  # If there is no passwd entry for the container UID, attempt to fake one
+  # You can also refer to the https://github.com/docker-library/official-images/pull/13089#issuecomment-1534706523
+  # It's to resolve OpenShift random UID case.
+  # See also: https://github.com/docker-library/postgres/pull/448
+  if ! getent passwd "$myuid" &> /dev/null; then
+      local wrapper
+      for wrapper in {/usr,}/lib{/*,}/libnss_wrapper.so; do
+        if [ -s "$wrapper" ]; then
+          NSS_WRAPPER_PASSWD="$(mktemp)"
+          NSS_WRAPPER_GROUP="$(mktemp)"
+          export LD_PRELOAD="$wrapper" NSS_WRAPPER_PASSWD NSS_WRAPPER_GROUP
+          local mygid; mygid="$(id -g)"
+          printf 'spark:x:%s:%s:${SPARK_USER_NAME:-anonymous uid}:%s:/bin/false\n' "$myuid" "$mygid" "$SPARK_HOME" > "$NSS_WRAPPER_PASSWD"
+          printf 'spark:x:%s:\n' "$mygid" > "$NSS_WRAPPER_GROUP"
+          break
+        fi
+      done
+  fi
+}
 
-set -o errexit
-set -o nounset
-set -o pipefail
-#set -o xtrace
-
-# Load libraries
-. /opt/bitnami/scripts/libbitnami.sh
-. /opt/bitnami/scripts/libspark.sh
-
-# Load Spark environment settings
-. /opt/bitnami/scripts/spark-env.sh
-
-print_welcome_page
-
-if [ ! $EUID -eq 0 ] && [ -e "$LIBNSS_WRAPPER_PATH" ]; then
-    echo "spark:x:$(id -u):$(id -g):Spark:$SPARK_HOME:/bin/false" > "$NSS_WRAPPER_PASSWD"
-    echo "spark:x:$(id -g):" > "$NSS_WRAPPER_GROUP"
-    echo "LD_PRELOAD=$LIBNSS_WRAPPER_PATH" >> "$SPARK_CONF_DIR/spark-env.sh"
+if [ -z "$JAVA_HOME" ]; then
+  JAVA_HOME=$(java -XshowSettings:properties -version 2>&1 > /dev/null | grep 'java.home' | awk '{print $3}')
 fi
 
-if [[ "$1" = "/opt/bitnami/scripts/spark/run.sh" ]]; then
-    info "** Starting Spark setup **"
-    /opt/bitnami/scripts/spark/setup.sh
-    info "** Spark setup finished! **"
+SPARK_CLASSPATH="$SPARK_CLASSPATH:${SPARK_HOME}/jars/*"
+for v in "${!SPARK_JAVA_OPT_@}"; do
+    SPARK_EXECUTOR_JAVA_OPTS+=( "${!v}" )
+done
+
+if [ -n "$SPARK_EXTRA_CLASSPATH" ]; then
+  SPARK_CLASSPATH="$SPARK_CLASSPATH:$SPARK_EXTRA_CLASSPATH"
 fi
 
-# ref: https://spark.apache.org/docs/latest/running-on-kubernetes.html
-# inspired by https://github.com/apache/spark/blob/master/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/entrypoint.sh
+if ! [ -z "${PYSPARK_PYTHON+x}" ]; then
+    export PYSPARK_PYTHON
+fi
+if ! [ -z "${PYSPARK_DRIVER_PYTHON+x}" ]; then
+    export PYSPARK_DRIVER_PYTHON
+fi
+
+# If HADOOP_HOME is set and SPARK_DIST_CLASSPATH is not set, set it here so Hadoop jars are available to the executor.
+# It does not set SPARK_DIST_CLASSPATH if already set, to avoid overriding customizations of this value from elsewhere e.g. Docker/K8s.
+if [ -n "${HADOOP_HOME}"  ] && [ -z "${SPARK_DIST_CLASSPATH}"  ]; then
+  export SPARK_DIST_CLASSPATH="$($HADOOP_HOME/bin/hadoop classpath)"
+fi
+
+if ! [ -z "${HADOOP_CONF_DIR+x}" ]; then
+  SPARK_CLASSPATH="$HADOOP_CONF_DIR:$SPARK_CLASSPATH";
+fi
+
+if ! [ -z "${SPARK_CONF_DIR+x}" ]; then
+  SPARK_CLASSPATH="$SPARK_CONF_DIR:$SPARK_CLASSPATH";
+elif ! [ -z "${SPARK_HOME+x}" ]; then
+  SPARK_CLASSPATH="$SPARK_HOME/conf:$SPARK_CLASSPATH";
+fi
+
+# SPARK-43540: add current working directory into executor classpath
+SPARK_CLASSPATH="$SPARK_CLASSPATH:$PWD"
+
+# Switch to spark if no USER specified (root by default) otherwise use USER directly
+switch_spark_if_root() {
+  if [ $(id -u) -eq 0 ]; then
+    echo gosu spark
+  fi
+}
+
 case "$1" in
   driver)
     shift 1
     CMD=(
-        "/opt/bitnami/spark/bin/spark-submit"
-        --conf "spark.driver.bindAddress=$SPARK_DRIVER_BIND_ADDRESS"
-        --conf "spark.executorEnv.SPARK_DRIVER_POD_IP=$SPARK_DRIVER_BIND_ADDRESS"
-        --conf "spark.jars.ivy=/tmp/.ivy"
-        --deploy-mode client
-        "$@"
+      "$SPARK_HOME/bin/spark-submit"
+      --conf "spark.driver.bindAddress=$SPARK_DRIVER_BIND_ADDRESS"
+      --conf "spark.executorEnv.SPARK_DRIVER_POD_IP=$SPARK_DRIVER_BIND_ADDRESS"
+      --deploy-mode client
+      "$@"
     )
+    attempt_setup_fake_passwd_entry
+    # Execute the container CMD under tini for better hygiene
+    exec $(switch_spark_if_root) /usr/bin/tini -s -- "${CMD[@]}"
     ;;
   executor)
     shift 1
-
-    set +o pipefail
-
-    env | grep SPARK_JAVA_OPT_ | sort -t_ -k4 -n | sed 's/[^=]*=\(.*\)/\1/g' > /tmp/java_opts.txt
-    readarray -t SPARK_EXECUTOR_JAVA_OPTS < /tmp/java_opts.txt
-
-    set -o pipefail
-
     CMD=(
-      "${JAVA_HOME}/bin/java"
+      ${JAVA_HOME}/bin/java
       "${SPARK_EXECUTOR_JAVA_OPTS[@]}"
-      "-Xms${SPARK_EXECUTOR_MEMORY}"
-      "-Xmx${SPARK_EXECUTOR_MEMORY}"
-      -cp '/opt/bitnami/spark/conf::/opt/bitnami/spark/jars/*'
+      -Xms"$SPARK_EXECUTOR_MEMORY"
+      -Xmx"$SPARK_EXECUTOR_MEMORY"
+      -cp "$SPARK_CLASSPATH:$SPARK_DIST_CLASSPATH"
       org.apache.spark.scheduler.cluster.k8s.KubernetesExecutorBackend
       --driver-url "$SPARK_DRIVER_URL"
       --executor-id "$SPARK_EXECUTOR_ID"
@@ -69,13 +118,13 @@ case "$1" in
       --resourceProfileId "$SPARK_RESOURCE_PROFILE_ID"
       --podName "$SPARK_EXECUTOR_POD_NAME"
     )
+    attempt_setup_fake_passwd_entry
+    # Execute the container CMD under tini for better hygiene
+    exec $(switch_spark_if_root) /usr/bin/tini -s -- "${CMD[@]}"
     ;;
 
   *)
-    # Non-spark-on-k8s command provided, proceeding in pass-through mode
-    CMD=("$@")
+    # Non-spark-on-k8s command provided, proceeding in pass-through mode...
+    exec "$@"
     ;;
 esac
-
-echo ""
-exec "${CMD[@]}"

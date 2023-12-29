@@ -1,75 +1,70 @@
-# Copyright VMware, Inc.
-# SPDX-License-Identifier: APACHE-2.0
+FROM eclipse-temurin:17-jre-jammy
 
-FROM docker.io/bitnami/minideb:bullseye
+ARG spark_uid=185
 
-ARG JAVA_EXTRA_SECURITY_DIR="/bitnami/java/extra-security"
-ARG TARGETARCH
+RUN groupadd --system --gid=${spark_uid} spark && \
+    useradd --system --uid=${spark_uid} --gid=spark spark
 
-LABEL org.opencontainers.image.base.name="docker.io/bitnami/minideb:bullseye" \
-      org.opencontainers.image.ref.name="3.5.0-debian-11-r17" \
-      org.opencontainers.image.title="spark" \
-      org.opencontainers.image.vendor="MFware, Inc." \
-      org.opencontainers.image.version="3.5.0"
+RUN set -ex; \
+    apt-get update; \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y dialog apt-utils gnupg2 wget bash tini libc6 libpam-modules krb5-user libnss3 procps net-tools gosu libnss-wrapper mc lsof inetutils-ping netcat; \
+    apt install -y python3 python3-pip && \
+    mkdir -p /opt/spark; \
+    mkdir /opt/spark/python; \
+    mkdir -p /opt/spark/examples; \
+    mkdir -p /opt/spark/work-dir; \
+    chmod g+w /opt/spark/work-dir; \
+    touch /opt/spark/RELEASE; \
+    chown -R spark:spark /opt/spark; \
+    echo "auth required pam_wheel.so use_uid" >> /etc/pam.d/su;
 
-ENV HOME="/" \
-    OS_ARCH="${TARGETARCH:-amd64}" \
-    OS_FLAVOUR="debian-11" \
-    OS_NAME="linux" \
-    PATH="/opt/bitnami/python/bin:/opt/bitnami/java/bin:/opt/bitnami/spark/bin:/opt/bitnami/spark/sbin:$PATH"
+RUN pip3 install --upgrade pip
+RUN pip3 install pyspark awswrangler boto3 findspark gimme-aws-creds keyrings.alt virtualenv ipychart thrift pyhive
 
-COPY ./apps/spark/prebuildfs /
-SHELL ["/bin/bash", "-o", "errexit", "-o", "nounset", "-o", "pipefail", "-c"]
-# Install required system packages and dependencies
-RUN install_packages ca-certificates curl libbz2-1.0 libcom-err2 libcrypt1 libffi7 libgcc-s1 libgssapi-krb5-2 libk5crypto3 \
-    libkeyutils1 libkrb5-3 libkrb5support0 liblzma5 libncursesw6 libnsl2 libreadline8 libsqlite3-0 libssl1.1 libstdc++6 libtinfo6 libtirpc3 procps zlib1g
-RUN mkdir -p /tmp/bitnami/pkg/cache/ ; cd /tmp/bitnami/pkg/cache/ ; \
-    COMPONENTS=( \
-      "python-3.11.7-0-linux-${OS_ARCH}-debian-11" \
-      "java-17.0.9-11-6-linux-${OS_ARCH}-debian-11" \
-      "spark-3.5.0-6-linux-${OS_ARCH}-debian-11" \
-    ) ; \
-    for COMPONENT in "${COMPONENTS[@]}"; do \
-      if [ ! -f "${COMPONENT}.tar.gz" ]; then \
-        curl -SsLf "https://downloads.bitnami.com/files/stacksmith/${COMPONENT}.tar.gz" -O ; \
-        curl -SsLf "https://downloads.bitnami.com/files/stacksmith/${COMPONENT}.tar.gz.sha256" -O ; \
-      fi ; \
-      sha256sum -c "${COMPONENT}.tar.gz.sha256" ; \
-      tar -zxf "${COMPONENT}.tar.gz" -C /opt/bitnami --strip-components=2 --no-same-owner --wildcards '*/files' ; \
-      rm -rf "${COMPONENT}".tar.gz{,.sha256} ; \
-    done
-RUN apt-get autoremove --purge -y curl && \
-    apt-get update && apt-get upgrade -y && \
-    apt-get install -y wget mc inetutils-ping netcat
-    #apt-get clean && rm -rf /var/lib/apt/lists /var/cache/apt/archives
-RUN chmod g+rwX /opt/bitnami
-RUN mkdir /.local && chmod g+rwX /.local
+# Install Apache Spark
+# https://downloads.apache.org/spark/KEYS
 
-COPY ./apps/spark/rootfs /
-RUN /opt/bitnami/scripts/spark/postunpack.sh
-RUN /opt/bitnami/scripts/java/postunpack.sh
-ENV APP_VERSION="3.5.0" \
-    BITNAMI_APP_NAME="spark" \
-    JAVA_HOME="/opt/bitnami/java" \
-    LD_LIBRARY_PATH="/opt/bitnami/python/lib:/opt/bitnami/spark/venv/lib/python3.8/site-packages/numpy.libs:$LD_LIBRARY_PATH" \
-    LIBNSS_WRAPPER_PATH="/opt/bitnami/common/lib/libnss_wrapper.so" \
-    NSS_WRAPPER_GROUP="/opt/bitnami/spark/tmp/nss_group" \
-    NSS_WRAPPER_PASSWD="/opt/bitnami/spark/tmp/nss_passwd" \
-    PYTHONPATH="/opt/bitnami/spark/python/:$PYTHONPATH" \
-    SPARK_HOME="/opt/bitnami/spark" \
-    SPARK_USER="spark"
+ENV SPARK_VERSION 3.5.0
+ENV HADOOP_VERSION 3
+ENV SPARK_ARCHIVE spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION}.tgz
+
+RUN set -ex; \
+    export SPARK_TMP="$(mktemp -d)"; \
+    cd $SPARK_TMP; \
+    wget -nv -O spark.tgz "https://archive.apache.org/dist/spark/spark-${SPARK_VERSION}/${SPARK_ARCHIVE}"; \
+    tar -xf spark.tgz --strip-components=1; \
+    chown -R spark:spark .; \
+    mv jars /opt/spark/; \
+    mv bin /opt/spark/; \
+    mv sbin /opt/spark/; \
+    mv kubernetes/dockerfiles/spark/decom.sh /opt/; \
+    mv examples /opt/spark/; \
+    mv kubernetes/tests /opt/spark/; \
+    mv data /opt/spark/; \
+    mv python/pyspark /opt/spark/python/pyspark/; \
+    mv python/lib /opt/spark/python/lib/; \
+    mv R /opt/spark/; \
+    chmod a+x /opt/decom.sh; \
+    cd ..; \
+    rm -rf "$SPARK_TMP";
 
 ENV DELTA_CORE 2.4.0
 ENV DELTA_VERSION 3.0.0
 ENV SCALA_VERSION 2.12
-ENV SPARK_DIR /opt/bitnami/spark
+ENV SPARK_HOME /opt/spark
+ENV JAVA_HOME=/opt/java/openjdk
+
 RUN wget https://repo1.maven.org/maven2/io/delta/delta-core_$SCALA_VERSION/$DELTA_CORE/delta-core_$SCALA_VERSION-$DELTA_CORE.jar -P $SPARK_HOME/jars/ && \
     wget https://repo1.maven.org/maven2/io/delta/delta-storage/$DELTA_VERSION/delta-storage-$DELTA_VERSION.jar -P $SPARK_HOME/jars/
 
 
+COPY ./apps/spark/entrypoint.sh /opt/
+COPY ./apps/spark/run.sh /opt/
 COPY ./apps/spark/scripts /scripts
 
-WORKDIR /opt/bitnami/spark
-USER 1001
-ENTRYPOINT [ "/opt/bitnami/scripts/spark/entrypoint.sh" ]
-CMD [ "/opt/bitnami/scripts/spark/run.sh" ]
+WORKDIR /opt/spark/work-dir
+
+USER spark
+
+ENTRYPOINT [ "/opt/entrypoint.sh" ]
+CMD [ "/opt/run.sh" ]
