@@ -46,5 +46,6 @@ Container | Channel | Image | Latest Tags
 [plex]() | stable | ghcr.io/clarknova99/plex |
 [plex-beta]() | beta | ghcr.io/clarknova99/plex-beta |
 [spark](https://github.com/clarknova99/containers/pkgs/container/spark) | stable | ghcr.io/clarknova99/spark |![3.5.0-scala2.12-java17-ubuntu](https://img.shields.io/badge/3.5.0--scala2.12--java17--ubuntu-blue?style=flat-square) ![rolling](https://img.shields.io/badge/rolling-blue?style=flat-square)
+[spark](https://github.com/clarknova99/containers/pkgs/container/spark) | stable | ghcr.io/clarknova99/spark |![3.5.0-scala2.12-java17-ubuntu](https://img.shields.io/badge/3.5.0--scala2.12--java17--ubuntu-blue?style=flat-square) ![rolling](https://img.shields.io/badge/rolling-blue?style=flat-square)
 
 
