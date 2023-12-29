@@ -1,4 +1,4 @@
-FROM eclipse-temurin:17-jre-jammy
+FROM eclipse-temurin:17.0.9_9-jre-jammy
 
 ARG spark_uid=185
 
