@@ -1,4 +1,4 @@
-FROM eclipse-temurin:11-jre-focal
+FROM eclipse-temurin:11.0.22_7-jre-focal
 
 ARG spark_uid=1000
 
